@@ -6,7 +6,7 @@ from blockchain import Blockchain
 blockchain = Blockchain()
 
 # MQTT Broker Details
-broker_address = "192.168.x.x"  # Replace with your broker's IP
+broker_address = "192.168.1.148"  # Replace with your broker's IP
 broker_port = 1883
 topic_update = "blockchain_update"
 
