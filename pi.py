@@ -12,9 +12,10 @@ blockchain = Blockchain()
 dht_device = adafruit_dht.DHT22(board.D17)  # Set up DHT22 sensor
 
 # MQTT Broker details
-broker_address = "localhost"  # MQTT broker running on the same Raspberry Pi
-broker_port = 1883  # Default MQTT port
-topic_update = "blockchain_update"  # Topic for blockchain updates
+broker_address = "localhost"  # MQTT broker running on the Raspberry Pi
+broker_port = 1883
+topic_update = "blockchain_update"
+topic_sync = "blockchain_sync"
 
 # Callback function when the client connects to the broker
 def on_connect(client, userdata, flags, rc):
@@ -26,16 +27,19 @@ def publish_new_block(client, block):
     client.publish(topic_update, json.dumps(block_data))
     print(f"Published new block: {block_data}")
 
+# Broadcast the entire blockchain to the blockchain_sync topic
+def broadcast_full_chain(client):
+    chain_data = [block.to_dict() for block in blockchain.chain]
+    client.publish(topic_sync, json.dumps(chain_data))
+    print(f"Broadcasted full blockchain: {chain_data}")
 
 # Read sensor data from DHT22
 def get_sensor_data():
     try:
         # Read temperature and humidity
-        temperature_c = dht_device.temperature  # Temp in Celsius
-        temperature_f = temperature_c * (9 / 5) + 32  # Convert to Fahrenheit
+        temperature_c = dht_device.temperature
+        temperature_f = temperature_c * (9 / 5) + 32
         humidity = dht_device.humidity
-
-        # Return sensor data if valid
         if temperature_f is not None and humidity is not None:
             return {
                 "temperature_f": round(temperature_f, 2),
@@ -46,32 +50,29 @@ def get_sensor_data():
         return None
 
 def main():
-    client = mqtt.Client("PiNode")  # Correct client name for the Pi
+    client = mqtt.Client("PiNode")
     client.username_pw_set("david-pi", "super_secure_password")  # MQTT authentication
     client.on_connect = on_connect
 
     try:
-        # Connect to the MQTT broker
         client.connect(broker_address, broker_port, 60)
-        client.loop_start()  # Start the MQTT loop in the background
+        client.loop_start()
 
         while True:
-            # Read sensor data
+            # Publish individual blocks
             sensor_data = get_sensor_data()
             if sensor_data:
-                # Add sensor data to the blockchain
                 new_block = blockchain.add_block(sensor_data)
-
-                # Publish the new block to the MQTT topic
                 publish_new_block(client, new_block)
 
-            # Wait 10 seconds before the next reading
-            time.sleep(10)
+            # Periodically broadcast the full blockchain
+            if int(time.time()) % 60 == 0:  # Every 60 seconds
+                broadcast_full_chain(client)
 
+            time.sleep(10)
     except KeyboardInterrupt:
         print("\nExiting...")
     finally:
-        # Properly stop the MQTT loop and disconnect
         client.loop_stop()
         client.disconnect()
 

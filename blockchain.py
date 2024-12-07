@@ -1,4 +1,5 @@
 import hashlib
+import json
 import time
 
 class Block:
@@ -10,11 +11,17 @@ class Block:
         self.hash = self.calculate_hash()
 
     def calculate_hash(self):
-        to_hash = f"{self.index}{self.timestamp}{self.data}{self.previous_hash}"
+        """Calculate the SHA-256 hash of the block."""
+        to_hash = json.dumps({
+            "index": self.index,
+            "timestamp": self.timestamp,
+            "data": self.data,
+            "previous_hash": self.previous_hash
+        }, sort_keys=True)  # Use sort_keys=True for consistent serialization
         return hashlib.sha256(to_hash.encode()).hexdigest()
 
     def to_dict(self):
-        """Return a dictionary representation of the block."""
+        """Convert the block into a dictionary."""
         return {
             "index": self.index,
             "timestamp": self.timestamp,
@@ -54,6 +61,7 @@ class Blockchain:
         return self.chain[-1]
 
     def add_block(self, data):
+        """Add a new block to the blockchain."""
         latest_block = self.get_latest_block()
         new_block = Block(
             index=latest_block.index + 1,
@@ -65,20 +73,18 @@ class Blockchain:
         return new_block
 
     def is_chain_valid(self):
+        """Validate the blockchain."""
         for i in range(1, len(self.chain)):
             current = self.chain[i]
             previous = self.chain[i - 1]
-            
-            # Validate current block's hash
+            # Check if the hash is correct
             if current.hash != current.calculate_hash():
                 print(f"Invalid block at index {i}: hash does not match")
                 return False
-
-            # Validate hash link to previous block
+            # Check if the previous hash is correct
             if current.previous_hash != previous.hash:
                 print(f"Invalid block at index {i}: previous hash does not match")
                 return False
-
         return True
 
     def __repr__(self):
