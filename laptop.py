@@ -39,6 +39,7 @@ def on_connect(client, userdata, flags, rc):
 def main():
     # Set up the MQTT client
     client = mqtt.Client("LaptopNode")
+    client.username_pw_set("david-pi", "super_secure_password")  # Add correct MQTT credentials
     client.on_connect = on_connect
     client.on_message = on_message
 

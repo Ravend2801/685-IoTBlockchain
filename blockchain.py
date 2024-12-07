@@ -22,15 +22,18 @@ class Blockchain:
         self.chain = [self.create_genesis_block()]
 
     def create_genesis_block(self):
-        """Create the first block in the blockchain."""
-        return Block(0, time.time(), "Genesis Block", "0")
+        """Create a consistent Genesis Block."""
+        return Block(
+            index=0,
+            timestamp=0,  # Fixed timestamp for consistency
+            data="Genesis Block",
+            previous_hash="0"
+        )
 
     def get_latest_block(self):
-        """Get the most recent block in the chain."""
         return self.chain[-1]
 
     def add_block(self, data):
-        """Add a new block to the blockchain."""
         latest_block = self.get_latest_block()
         new_block = Block(
             index=latest_block.index + 1,
@@ -42,7 +45,6 @@ class Blockchain:
         return new_block
 
     def is_chain_valid(self):
-        """Check if the blockchain is valid."""
         for i in range(1, len(self.chain)):
             current = self.chain[i]
             previous = self.chain[i - 1]
