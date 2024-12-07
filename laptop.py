@@ -10,8 +10,9 @@ broker_address = "192.168.1.148"  # Replace with your broker's IP
 broker_port = 1883
 topic_update = "blockchain_update"
 topic_sync = "blockchain_sync"
+sync_complete = False  # Flag to indicate synchronization
 
-# Validate the entire blockchain
+# Validate the blockchain
 def validate_chain(chain):
     for i in range(1, len(chain)):
         current = chain[i]
@@ -20,9 +21,13 @@ def validate_chain(chain):
             return False
     return True
 
-# Callback when a block is received on the blockchain_update topic
+# Callback for blockchain updates
 def on_message_block_update(client, userdata, msg):
-    global blockchain
+    global blockchain, sync_complete
+    if not sync_complete:
+        print("Ignoring block updates until synchronization is complete.")
+        return
+
     received_data = json.loads(msg.payload.decode())
     received_block = Block.from_dict(received_data)
 
@@ -42,16 +47,17 @@ def on_message_block_update(client, userdata, msg):
     for block in blockchain.chain:
         print(block)
 
-# Callback when the full blockchain is received on the blockchain_sync topic
+# Callback for blockchain synchronization
 def on_message_chain_sync(client, userdata, msg):
-    global blockchain
+    global blockchain, sync_complete
     received_chain_data = json.loads(msg.payload.decode())
     new_chain = [Block.from_dict(block) for block in received_chain_data]
 
     # Validate and update the chain if it's valid and longer
     if len(new_chain) > len(blockchain.chain) and validate_chain(new_chain):
         blockchain.chain = new_chain
-        print("\nBlockchain updated with a longer valid chain.")
+        sync_complete = True  # Mark synchronization as complete
+        print("\nBlockchain synchronized successfully.")
     else:
         print("\nReceived blockchain is invalid or shorter, ignoring.")
 
@@ -66,7 +72,7 @@ def on_connect(client, userdata, flags, rc):
 
 def main():
     client = mqtt.Client("LaptopNode")
-    client.username_pw_set("david-pi", "super_secure_password")  # MQTT authentication
+    client.username_pw_set("david-pi", "super_secure_password")
     client.on_connect = on_connect
     client.message_callback_add(topic_update, on_message_block_update)
     client.message_callback_add(topic_sync, on_message_chain_sync)
