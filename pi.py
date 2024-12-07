@@ -54,18 +54,26 @@ def main():
         client.connect(broker_address, broker_port, 60)
         client.loop_start()
 
+        last_temperature_time = 0
+        last_broadcast_time = 0
+
         while True:
-            # Publish individual blocks
-            sensor_data = get_sensor_data()
-            if sensor_data:
-                new_block = blockchain.add_block(sensor_data)
-                publish_new_block(client, new_block)
+            current_time = time.time()
 
-            # Periodically broadcast the full blockchain
-            if int(time.time()) % 30 == 0:  # Every 30 seconds
+            # Publish temperature data every 10 seconds
+            if current_time - last_temperature_time >= 10:
+                sensor_data = get_sensor_data()
+                if sensor_data:
+                    new_block = blockchain.add_block(sensor_data)
+                    publish_new_block(client, new_block)
+                last_temperature_time = current_time
+
+            # Broadcast full blockchain every 30 seconds
+            if current_time - last_broadcast_time >= 30:
                 broadcast_full_chain(client)
+                last_broadcast_time = current_time
 
-            time.sleep(10)
+            time.sleep(1)  # Small delay to prevent high CPU usage
     except KeyboardInterrupt:
         print("\nExiting...")
     finally:
