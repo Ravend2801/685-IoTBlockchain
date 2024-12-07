@@ -45,29 +45,15 @@ def get_sensor_data():
         return None
 
 def main():
-    # Set up MQTT client
-    client = mqtt.Client("PiNode")  # Unique client ID
-    client.username_pw_set("david-pi", "super_secure_password")  # MQTT authentication
+    client = mqtt.Client("LaptopNode", callback_api_version=5)
     client.on_connect = on_connect
+    client.on_message = on_message
 
-    # Connect to the broker
+    # Connect to the MQTT broker
     client.connect(broker_address, broker_port, 60)
 
-    # Start the MQTT loop in the background
-    client.loop_start()
-
-    # Main loop: read sensor data, add to blockchain, and publish updates
-    while True:
-        sensor_data = get_sensor_data()
-        if sensor_data:
-            # Add sensor data to the blockchain
-            new_block = blockchain.add_block(sensor_data)
-
-            # Publish the new block to the MQTT topic
-            publish_new_block(client, new_block)
-
-        # Wait 10 seconds before the next reading
-        time.sleep(10)
+    # Start the MQTT loop
+    client.loop_forever()
 
 if __name__ == "__main__":
     main()
