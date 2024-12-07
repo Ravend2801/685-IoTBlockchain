@@ -1,6 +1,6 @@
 import paho.mqtt.client as mqtt
 import json
-from blockchain import Blockchain
+from blockchain import Blockchain, Block
 
 # Initialize Blockchain
 blockchain = Blockchain()
@@ -14,12 +14,13 @@ topic_update = "blockchain_update"
 def on_message(client, userdata, msg):
     global blockchain
     received_data = json.loads(msg.payload.decode())
-    
+    received_block = Block.from_dict(received_data)  # Reconstruct the block object
+
     # Validate and add block to the blockchain
     latest_block = blockchain.get_latest_block()
-    if received_data["previous_hash"] == latest_block.hash:
-        blockchain.chain.append(received_data)
-        print(f"\nNew block received and added: {received_data}")
+    if received_block.previous_hash == latest_block.hash and received_block.hash == received_block.calculate_hash():
+        blockchain.chain.append(received_block)
+        print(f"\nNew block received and added: {received_block}")
     else:
         print("\nInvalid block received, ignoring.")
 

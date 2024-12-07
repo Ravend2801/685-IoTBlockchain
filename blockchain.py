@@ -13,6 +13,26 @@ class Block:
         to_hash = f"{self.index}{self.timestamp}{self.data}{self.previous_hash}"
         return hashlib.sha256(to_hash.encode()).hexdigest()
 
+    def to_dict(self):
+        """Return a dictionary representation of the block."""
+        return {
+            "index": self.index,
+            "timestamp": self.timestamp,
+            "data": self.data,
+            "previous_hash": self.previous_hash,
+            "hash": self.hash
+        }
+
+    @staticmethod
+    def from_dict(block_dict):
+        """Reconstruct a Block object from a dictionary."""
+        return Block(
+            index=block_dict["index"],
+            timestamp=block_dict["timestamp"],
+            data=block_dict["data"],
+            previous_hash=block_dict["previous_hash"]
+        )
+
     def __repr__(self):
         return (f"Block(index={self.index}, timestamp={self.timestamp}, data={self.data}, "
                 f"previous_hash={self.previous_hash}, hash={self.hash})")

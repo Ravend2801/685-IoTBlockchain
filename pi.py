@@ -22,9 +22,10 @@ def on_connect(client, userdata, flags, rc):
 
 # Publish a new block to the blockchain_update topic
 def publish_new_block(client, block):
-    block_data = json.dumps(block.__dict__)  # Serialize block data
-    client.publish(topic_update, block_data)
+    block_data = block.to_dict()  # Use consistent serialization
+    client.publish(topic_update, json.dumps(block_data))
     print(f"Published new block: {block_data}")
+
 
 # Read sensor data from DHT22
 def get_sensor_data():
