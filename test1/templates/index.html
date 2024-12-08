@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IoT Blockchain Dashboard</title>
+    <script>
+        async function fetchChain() {
+            const response = await fetch('/get_chain');
+            const data = await response.json();
+            const chainList = document.getElementById("blockchain-data");
+            chainList.innerHTML = "";
+
+            data.chain.forEach(block => {
+                const listItem = document.createElement("li");
+                listItem.textContent = `Block ${block.index}: ${JSON.stringify(block.data)} - Hash: ${block.hash}`;
+                chainList.appendChild(listItem);
+            });
+        }
+
+        async function logActivity() {
+            const deviceId = document.getElementById("device-id").value;
+            const activity = document.getElementById("activity").value;
+
+            const response = await fetch('/add_activity', {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ device_id: deviceId, activity })
+            });
+
+            const result = await response.json();
+            alert(result.message);
+            fetchChain();
+        }
+
+        window.onload = fetchChain;
+    </script>
+</head>
+<body>
+    <h1>IoT Blockchain Dashboard</h1>
+    <section>
+        <h2>Add Activity</h2>
+        <input type="text" id="device-id" placeholder="Device ID">
+        <input type="text" id="activity" placeholder="Activity">
+        <button onclick="logActivity()">Log Activity</button>
+    </section>
+    <section>
+        <h2>Blockchain Data</h2>
+        <ul id="blockchain-data"></ul>
+    </section>
+</body>
+</html>
