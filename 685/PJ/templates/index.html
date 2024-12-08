@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blockchain Device Manager</title>
+</head>
+<body>
+    <h1>Welcome to the Blockchain Device Manager</h1>
+    <p>Status of the blockchain will be displayed here.</p>
+    <!-- More interactive elements will be added here -->
+</body>
+
+<script>
+    function updateBlockchainStatus() {
+        fetch('/blockchain_status')
+            .then(response => response.json())
+            .then(data => {
+                document.querySelector('p').innerText = 'Latest Block Hash: ' + data.latest_block_hash;
+            });
+    }
+    
+    // Call this function to update the status periodically or after specific actions
+    updateBlockchainStatus();
+    </script>
+    
+</html>
