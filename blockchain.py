@@ -40,6 +40,14 @@ class Block:
             previous_hash=block_dict["previous_hash"]
         )
 
+    def __repr__(self):
+        """Return a string representation of the block."""
+        return (f"Block(index={self.index}, "
+                f"timestamp={self.timestamp}, "
+                f"data={self.data}, "
+                f"previous_hash={self.previous_hash}, "
+                f"hash={self.hash})")
+
 class Blockchain:
     def __init__(self):
         self.chain = [self.create_genesis_block()]

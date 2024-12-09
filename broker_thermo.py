@@ -7,7 +7,7 @@ from blockchain import Blockchain, Block
 
 # Initialize Blockchain
 blockchain = Blockchain()
-blockchain.register_device("pi")  # Register this device
+blockchain.register_device("thermometer")  # Register this device
 
 # Initialize the DHT22 sensor on GPIO pin 17
 dht_device = adafruit_dht.DHT22(board.D17)
@@ -20,7 +20,7 @@ topic_sync_request = "blockchain_sync_request"
 topic_sync = "blockchain_sync"
 
 def on_connect(client, userdata, flags, rc):
-    print("Pi connected to broker.")
+    print("Thermometer connected to broker.")
     client.subscribe([(topic_update, 0), (topic_sync_request, 0), (topic_sync, 0)])
 
 def on_message(client, userdata, msg):
@@ -63,7 +63,7 @@ def handle_chain_sync(client, chain_data):
 def request_chain_sync(client):
     """Request the full blockchain from peers."""
     print("Requesting full blockchain sync.")
-    client.publish(topic_sync_request, json.dumps({"requester": "pi"}))
+    client.publish(topic_sync_request, json.dumps({"requester": "thermometer"}))
 
 def validate_block(proposed_block, latest_block):
     """Validate a block based on hash and previous hash."""
@@ -79,7 +79,13 @@ def get_sensor_data():
         temperature_f = temperature_c * (9 / 5) + 32
         humidity = dht_device.humidity
         if temperature_f is not None and humidity is not None:
-            return {"temperature_f": round(temperature_f, 2), "humidity": round(humidity, 2)}
+            return {
+                "device": "thermometer",  # Include device identifier
+                "data": {
+                    "temperature_f": round(temperature_f, 2),
+                    "humidity": round(humidity, 2)
+                }
+            }
     except RuntimeError as err:
         print(f"Error reading sensor: {err.args[0]}")
     return None
@@ -94,13 +100,13 @@ def propose_block(client, data):
             data=data,
             previous_hash=latest_block.hash
         )
-        client.publish("blockchain_update", json.dumps(new_block.to_dict()))
+        client.publish(topic_update, json.dumps(new_block.to_dict()))
         print("Proposed new block:", new_block.to_dict())
     except Exception as e:
         print(f"Error proposing block: {e}")
 
 def main():
-    client = mqtt.Client("PiNode")
+    client = mqtt.Client("ThermometerNode")
     client.on_connect = on_connect
     client.on_message = on_message
     client.username_pw_set("david-pi", "super_secure_password")
@@ -125,7 +131,7 @@ def main():
 
             time.sleep(1)
     except KeyboardInterrupt:
-        print("Exiting Pi...")
+        print("Exiting Thermometer...")
     finally:
         client.loop_stop()
         client.disconnect()
