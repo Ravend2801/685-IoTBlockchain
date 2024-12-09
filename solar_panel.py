@@ -4,7 +4,7 @@ import time
 from random import randint
 
 # MQTT Broker details
-broker_address = "localhost"
+broker_address = "192.168.1.148"
 broker_port = 1883
 topic_update = "blockchain_update"
 

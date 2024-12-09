@@ -91,13 +91,13 @@ class Blockchain:
         return f"Blockchain(chain={self.chain})"
 
     def get_all_devices(self):
-        """Retrive all devices and their associated data from the blockchain."""
-        devices = []
-        for block in self.chain: 
-            for transaction in block['transactions']:
-                if transaction['type'] == 'device_registration':
-                    devices.append({
-                        'device_id': transaction['device_id'],
-                        'data': transaction['data']
-                    })
-        return devices 
+        """Retrieve all devices and their associated data from the blockchain."""
+        devices = {}
+        for block in self.chain:
+            # Check if the block contains a valid device update
+            if isinstance(block.data, dict) and "device" in block.data:
+                device_id = block.data["device"]
+                device_data = block.data.get("data", {})
+                devices[device_id] = device_data
+        return devices
+
