@@ -89,3 +89,15 @@ class Blockchain:
 
     def __repr__(self):
         return f"Blockchain(chain={self.chain})"
+
+    def get_all_devices(self):
+        """Retrive all devices and their associated data from the blockchain."""
+        devices = []
+        for block in self.chain: 
+            for transaction in block['transactions'];
+                if transaction['type'] == 'device_registration':
+                    devices.append({
+                        'device_id': transaction['device_id'],
+                        'data': transaction['data']
+                    })
+        return devices 

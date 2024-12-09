@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blockchain Device Manager</title>
+</head>
+<body>
+    <h1>Welcome to the Blockchain Device Manager</h1>
+    <p>Status of the blockchain will be displayed here.</p>
+    <h2>Connected Devices</h2>
+    <ul id="device-list"></ul>
+
+    <script>
+        function updateBlockchainStatus() {
+            fetch('/blockchain_status')
+                .then(response => response.json())
+                .then(data => {
+                    document.querySelector('p').innerText = 'Latest Block Hash: ' + data.latest_block_hash;
+                });
+        }
+
+        function loadDevices() {
+            fetch('/devices')
+                .then(response => response.json())
+                .then(data => {
+                    const deviceList = document.getElementById('device-list');
+                    deviceList.innerHTML = ''; // Clear existing list
+                    data.devices.forEach(device => {
+                        const listItem = document.createElement('li');
+                        listItem.innerText = `Device ID: ${device.device_id}, Data: ${JSON.stringify(device.data)}`;
+                        deviceList.appendChild(listItem);
+                    });
+                });
+        }
+
+        // Load devices and blockchain status periodically or after specific actions
+        updateBlockchainStatus();
+        loadDevices();
+    </script>
+</body>
+
+    
+</html>
