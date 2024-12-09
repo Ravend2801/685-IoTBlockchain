@@ -28,7 +28,7 @@ def on_message(client, userdata, msg):
     if msg.topic == topic_proposal:
         handle_block_proposal(client, json.loads(msg.payload.decode()))
     elif msg.topic == topic_update:
-        handle_block_update(json.loads(msg.payload.decode()))
+        handle_block_update(client, json.loads(msg.payload.decode()))
     elif msg.topic == topic_sync_request:
         respond_to_sync_request(client)
     elif msg.topic == topic_sync:
@@ -49,7 +49,7 @@ def handle_block_proposal(client, proposal_data):
     except Exception as e:
         print(f"Error processing block proposal: {e}")
 
-def handle_block_update(block_data):
+def handle_block_update(client, block_data):
     try:
         received_block = Block.from_dict(block_data)
         latest_block = blockchain.get_latest_block()

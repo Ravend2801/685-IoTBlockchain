@@ -23,11 +23,11 @@ def on_message(client, userdata, msg):
     if msg.topic == topic_proposal:
         handle_block_proposal(client, json.loads(msg.payload.decode()))
     elif msg.topic == topic_update:
-        handle_block_update(json.loads(msg.payload.decode()))
+        handle_block_update(client, json.loads(msg.payload.decode()))
     elif msg.topic == topic_sync_request:
         respond_to_sync_request(client)
     elif msg.topic == topic_sync:
-        handle_chain_sync(json.loads(msg.payload.decode()))
+        handle_chain_sync(client, json.loads(msg.payload.decode()))
 
 def handle_block_proposal(client, proposal_data):
     try:
@@ -44,7 +44,7 @@ def handle_block_proposal(client, proposal_data):
     except Exception as e:
         print(f"Error processing block proposal: {e}")
 
-def handle_block_update(block_data):
+def handle_block_update(client, block_data):
     try:
         received_block = Block.from_dict(block_data)
         latest_block = blockchain.get_latest_block()
@@ -63,7 +63,7 @@ def respond_to_sync_request(client):
     client.publish(topic_sync, json.dumps(chain_data))
     print("Published full blockchain in response to sync request.")
 
-def handle_chain_sync(chain_data):
+def handle_chain_sync(client, chain_data):
     new_chain = [Block.from_dict(block) for block in chain_data]
     if blockchain.replace_chain(new_chain):
         print("Replaced local blockchain with the longest valid chain.")
