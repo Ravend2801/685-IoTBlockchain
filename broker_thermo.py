@@ -7,6 +7,7 @@ from blockchain import Blockchain, Block
 
 # Initialize Blockchain
 blockchain = Blockchain()
+blockchain.register_device("pi")  # Register this device
 
 # Initialize the DHT22 sensor on GPIO pin 17
 dht_device = adafruit_dht.DHT22(board.D17)
@@ -14,45 +15,80 @@ dht_device = adafruit_dht.DHT22(board.D17)
 # MQTT Broker details
 broker_address = "localhost"
 broker_port = 1883
+topic_proposal = "blockchain_proposal"
 topic_update = "blockchain_update"
+topic_sync_request = "blockchain_sync_request"
 topic_sync = "blockchain_sync"
 
 def on_connect(client, userdata, flags, rc):
-    print(f"Pi connected to broker with result code {rc}")
-    client.subscribe([(topic_update, 0), (topic_sync, 0)])
+    print("Pi connected to broker.")
+    client.subscribe([(topic_proposal, 0), (topic_update, 0), (topic_sync_request, 0), (topic_sync, 0)])
 
 def on_message(client, userdata, msg):
-    """Handle incoming messages for blockchain updates and synchronization."""
-    if msg.topic == topic_update:
+    if msg.topic == topic_proposal:
+        handle_block_proposal(client, json.loads(msg.payload.decode()))
+    elif msg.topic == topic_update:
         handle_block_update(json.loads(msg.payload.decode()))
+    elif msg.topic == topic_sync_request:
+        respond_to_sync_request(client)
     elif msg.topic == topic_sync:
         handle_chain_sync(json.loads(msg.payload.decode()))
 
-def handle_block_update(block_data):
-    received_block = Blockchain.from_dict(block_data)
-    latest_block = blockchain.get_latest_block()
+def handle_block_proposal(client, proposal_data):
+    try:
+        proposed_block = Block.from_dict(proposal_data)
+        latest_block = blockchain.get_latest_block()
 
-    if received_block.previous_hash == latest_block.hash and received_block.hash == received_block.calculate_hash():
-        blockchain.chain.append(received_block)
-        print("New block added to Pi's blockchain.")
-    else:
-        print("Invalid block received by Pi.")
+        if blockchain.current_proposer == "pi" and validate_block(proposed_block, latest_block):
+            blockchain.chain.append(proposed_block)
+            print("Added proposed block to blockchain.")
+            broadcast_block(client, proposed_block)
+            blockchain.rotate_proposer()  # Rotate to the next proposer
+        else:
+            print("Block proposal rejected: Not Pi's turn or invalid block.")
+    except Exception as e:
+        print(f"Error processing block proposal: {e}")
+
+def handle_block_update(block_data):
+    try:
+        received_block = Block.from_dict(block_data)
+        latest_block = blockchain.get_latest_block()
+
+        if validate_block(received_block, latest_block):
+            blockchain.chain.append(received_block)
+            print("Added received block to blockchain.")
+        else:
+            print("Invalid block received. Requesting sync.")
+            request_chain_sync(client)
+    except Exception as e:
+        print(f"Error handling block update: {e}")
+
+def respond_to_sync_request(client):
+    chain_data = [block.to_dict() for block in blockchain.chain]
+    client.publish(topic_sync, json.dumps(chain_data))
+    print("Published full blockchain in response to sync request.")
 
 def handle_chain_sync(chain_data):
     new_chain = [Block.from_dict(block) for block in chain_data]
-    if len(new_chain) > len(blockchain.chain) and blockchain.is_chain_valid():
-        blockchain.chain = new_chain
-        print("Pi updated its blockchain with the longest chain.")
+    if blockchain.replace_chain(new_chain):
+        print("Replaced local blockchain with the longest valid chain.")
+    else:
+        print("Received chain is invalid or not longer.")
 
-def publish_new_block(client, block):
+def request_chain_sync(client):
+    print("Requesting full blockchain sync.")
+    client.publish(topic_sync_request, json.dumps({"requester": "pi"}))
+
+def broadcast_block(client, block):
     block_data = block.to_dict()
     client.publish(topic_update, json.dumps(block_data))
-    print(f"Pi published new block: {block_data}")
+    print("Broadcasted block to the network.")
 
-def broadcast_full_chain(client):
-    chain_data = [block.to_dict() for block in blockchain.chain]
-    client.publish(topic_sync, json.dumps(chain_data))
-    print("Pi broadcasted full blockchain.")
+def validate_block(proposed_block, latest_block):
+    return (
+        proposed_block.previous_hash == latest_block.hash
+        and proposed_block.hash == proposed_block.calculate_hash()
+    )
 
 def get_sensor_data():
     try:
@@ -65,6 +101,20 @@ def get_sensor_data():
         print(f"Error reading sensor: {err.args[0]}")
     return None
 
+def propose_block(client, data):
+    try:
+        latest_block = blockchain.get_latest_block()
+        new_block = Block(
+            index=latest_block.index + 1,
+            timestamp=time.time(),
+            data=data,
+            previous_hash=latest_block.hash
+        )
+        client.publish(topic_proposal, json.dumps(new_block.to_dict()))
+        print("Proposed new block:", new_block.to_dict())
+    except Exception as e:
+        print(f"Error proposing block: {e}")
+
 def main():
     client = mqtt.Client("PiNode")
     client.on_connect = on_connect
@@ -74,28 +124,17 @@ def main():
     client.loop_start()
 
     try:
-        last_temperature_time = 0
-        last_broadcast_time = 0
-
+        last_publish_time = 0
         while True:
             current_time = time.time()
-
-            # Publish temperature data every 10 seconds
-            if current_time - last_temperature_time >= 10:
+            if current_time - last_publish_time >= 10 and blockchain.current_proposer == "pi":
                 sensor_data = get_sensor_data()
                 if sensor_data:
-                    new_block = blockchain.add_block(sensor_data)
-                    publish_new_block(client, new_block)
-                last_temperature_time = current_time
-
-            # Broadcast full blockchain every 30 seconds
-            if current_time - last_broadcast_time >= 1:
-                broadcast_full_chain(client)
-                last_broadcast_time = current_time
-
+                    propose_block(client, sensor_data)
+                last_publish_time = current_time
             time.sleep(1)
     except KeyboardInterrupt:
-        print("\nExiting...")
+        print("Exiting Pi...")
     finally:
         client.loop_stop()
         client.disconnect()

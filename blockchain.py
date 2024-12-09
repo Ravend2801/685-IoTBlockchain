@@ -17,7 +17,7 @@ class Block:
             "timestamp": self.timestamp,
             "data": self.data,
             "previous_hash": self.previous_hash
-        }, sort_keys=True)  # Use sort_keys=True for consistent serialization
+        }, sort_keys=True)
         return hashlib.sha256(to_hash.encode()).hexdigest()
 
     def to_dict(self):
@@ -40,19 +40,17 @@ class Block:
             previous_hash=block_dict["previous_hash"]
         )
 
-    def __repr__(self):
-        return (f"Block(index={self.index}, timestamp={self.timestamp}, data={self.data}, "
-                f"previous_hash={self.previous_hash}, hash={self.hash})")
-
 class Blockchain:
     def __init__(self):
         self.chain = [self.create_genesis_block()]
+        self.device_list = []  # Track devices for round-robin proposer
+        self.current_proposer = None
 
     def create_genesis_block(self):
         """Create a consistent Genesis Block."""
         return Block(
             index=0,
-            timestamp=0,  # Fixed timestamp for consistency
+            timestamp=0,
             data="Genesis Block",
             previous_hash="0"
         )
@@ -60,8 +58,10 @@ class Blockchain:
     def get_latest_block(self):
         return self.chain[-1]
 
-    def add_block(self, data):
-        """Add a new block to the blockchain."""
+    def add_block(self, data, device_id):
+        """Add a new block to the blockchain if it's this device's turn."""
+        if self.current_proposer != device_id:
+            raise Exception(f"Not {device_id}'s turn to propose a block.")
         latest_block = self.get_latest_block()
         new_block = Block(
             index=latest_block.index + 1,
@@ -69,35 +69,38 @@ class Blockchain:
             data=data,
             previous_hash=latest_block.hash
         )
-        self.chain.append(new_block)
-        return new_block
+        if new_block.hash == new_block.calculate_hash():
+            self.chain.append(new_block)
+            self.rotate_proposer()  # Move to the next proposer
+            return new_block
+        else:
+            raise Exception("Block validation failed.")
 
-    def is_chain_valid(self):
-        """Validate the blockchain."""
-        for i in range(1, len(self.chain)):
-            current = self.chain[i]
-            previous = self.chain[i - 1]
-            # Check if the hash is correct
-            if current.hash != current.calculate_hash():
-                print(f"Invalid block at index {i}: hash does not match")
-                return False
-            # Check if the previous hash is correct
-            if current.previous_hash != previous.hash:
-                print(f"Invalid block at index {i}: previous hash does not match")
+    def validate_chain(self, chain):
+        """Validate an entire blockchain."""
+        for i in range(1, len(chain)):
+            current = chain[i]
+            previous = chain[i - 1]
+            if current.previous_hash != previous.hash or current.hash != current.calculate_hash():
                 return False
         return True
 
-    def __repr__(self):
-        return f"Blockchain(chain={self.chain})"
+    def replace_chain(self, new_chain):
+        """Replace the chain with a new valid chain if it's longer."""
+        if len(new_chain) > len(self.chain) and self.validate_chain(new_chain):
+            self.chain = new_chain
+            return True
+        return False
 
-    def get_all_devices(self):
-        """Retrieve all devices and their associated data from the blockchain."""
-        devices = {}
-        for block in self.chain:
-            # Check if the block contains a valid device update
-            if isinstance(block.data, dict) and "device" in block.data:
-                device_id = block.data["device"]
-                device_data = block.data.get("data", {})
-                devices[device_id] = device_data
-        return devices
+    def register_device(self, device_id):
+        """Register a device for round-robin proposing."""
+        if device_id not in self.device_list:
+            self.device_list.append(device_id)
+            if not self.current_proposer:  # Set the first proposer
+                self.current_proposer = device_id
 
+    def rotate_proposer(self):
+        """Move to the next proposer in the round-robin list."""
+        if self.device_list:
+            current_index = self.device_list.index(self.current_proposer)
+            self.current_proposer = self.device_list[(current_index + 1) % len(self.device_list)]
