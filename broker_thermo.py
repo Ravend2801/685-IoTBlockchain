@@ -3,7 +3,7 @@ import json
 import time
 import adafruit_dht
 import board
-from blockchain import Blockchain
+from blockchain import Blockchain, Block
 
 # Initialize Blockchain
 blockchain = Blockchain()
@@ -17,23 +17,43 @@ broker_port = 1883
 topic_update = "blockchain_update"
 topic_sync = "blockchain_sync"
 
-# Callback when the client connects to the broker
 def on_connect(client, userdata, flags, rc):
-    print(f"Connected to broker with result code {rc}")
+    print(f"Pi connected to broker with result code {rc}")
+    client.subscribe([(topic_update, 0), (topic_sync, 0)])
 
-# Publish a new block to the blockchain_update topic
+def on_message(client, userdata, msg):
+    """Handle incoming messages for blockchain updates and synchronization."""
+    if msg.topic == topic_update:
+        handle_block_update(json.loads(msg.payload.decode()))
+    elif msg.topic == topic_sync:
+        handle_chain_sync(json.loads(msg.payload.decode()))
+
+def handle_block_update(block_data):
+    received_block = Blockchain.from_dict(block_data)
+    latest_block = blockchain.get_latest_block()
+
+    if received_block.previous_hash == latest_block.hash and received_block.hash == received_block.calculate_hash():
+        blockchain.chain.append(received_block)
+        print("New block added to Pi's blockchain.")
+    else:
+        print("Invalid block received by Pi.")
+
+def handle_chain_sync(chain_data):
+    new_chain = [Block.from_dict(block) for block in chain_data]
+    if len(new_chain) > len(blockchain.chain) and blockchain.is_chain_valid():
+        blockchain.chain = new_chain
+        print("Pi updated its blockchain with the longest chain.")
+
 def publish_new_block(client, block):
     block_data = block.to_dict()
     client.publish(topic_update, json.dumps(block_data))
-    print(f"Published new block: {block_data}")
+    print(f"Pi published new block: {block_data}")
 
-# Broadcast the entire blockchain to the blockchain_sync topic
 def broadcast_full_chain(client):
     chain_data = [block.to_dict() for block in blockchain.chain]
     client.publish(topic_sync, json.dumps(chain_data))
-    print(f"Broadcasted full blockchain: {chain_data}")
+    print("Pi broadcasted full blockchain.")
 
-# Read sensor data
 def get_sensor_data():
     try:
         temperature_c = dht_device.temperature
@@ -47,13 +67,13 @@ def get_sensor_data():
 
 def main():
     client = mqtt.Client("PiNode")
-    client.username_pw_set("david-pi", "super_secure_password")
     client.on_connect = on_connect
+    client.on_message = on_message
+    client.username_pw_set("david-pi", "super_secure_password")
+    client.connect(broker_address, broker_port, 60)
+    client.loop_start()
 
     try:
-        client.connect(broker_address, broker_port, 60)
-        client.loop_start()
-
         last_temperature_time = 0
         last_broadcast_time = 0
 
@@ -73,7 +93,7 @@ def main():
                 broadcast_full_chain(client)
                 last_broadcast_time = current_time
 
-            time.sleep(1)  # Small delay to prevent high CPU usage
+            time.sleep(1)
     except KeyboardInterrupt:
         print("\nExiting...")
     finally:
