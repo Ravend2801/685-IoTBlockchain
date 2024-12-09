@@ -53,7 +53,7 @@ def main():
             lock_status = {"status": "on" if int(time.time()) % 2 == 0 else "off"}
             new_block = blockchain.add_block({"device": "smart_lock", "data": lock_status})
             publish_block(client, new_block)
-            time.sleep(5)
+            time.sleep(10)
     except KeyboardInterrupt:
         print("\nExiting Smart Lock...")
     finally:

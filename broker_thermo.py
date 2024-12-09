@@ -81,7 +81,7 @@ def main():
             current_time = time.time()
 
             # Publish temperature data every 10 seconds
-            if current_time - last_temperature_time >= 4:
+            if current_time - last_temperature_time >= 10:
                 sensor_data = get_sensor_data()
                 if sensor_data:
                     new_block = blockchain.add_block(sensor_data)
@@ -89,7 +89,7 @@ def main():
                 last_temperature_time = current_time
 
             # Broadcast full blockchain every 30 seconds
-            if current_time - last_broadcast_time >= 30:
+            if current_time - last_broadcast_time >= 1:
                 broadcast_full_chain(client)
                 last_broadcast_time = current_time
 
