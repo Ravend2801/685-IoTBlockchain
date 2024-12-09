@@ -94,7 +94,7 @@ class Blockchain:
         """Retrive all devices and their associated data from the blockchain."""
         devices = []
         for block in self.chain: 
-            for transaction in block['transactions'];
+            for transaction in block['transactions']:
                 if transaction['type'] == 'device_registration':
                     devices.append({
                         'device_id': transaction['device_id'],
